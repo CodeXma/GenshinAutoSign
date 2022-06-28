@@ -1,4 +1,4 @@
-#Coded By Retrocal
+# Coded By Retrocal
 import json
 import requests
 from urllib3 import disable_warnings
@@ -23,18 +23,21 @@ class AutoSign:
         }
         self.signurl = 'https://api-takumi.mihoyo.com/event/bbs_sign_reward/sign'
         self.SignInThread()
+        self.msg = ""
 
     def SignInThread(self):
         while True:
-            if self.firsttime or (time.localtime().tm_hour == 4 and time.localtime().tm_min == 30 and time.localtime().tm_sec == 0):
+            if self.firsttime or (
+                    time.localtime().tm_hour == 4 and time.localtime().tm_min == 30 and time.localtime().tm_sec == 0):
                 self.Init()
                 self.firsttime = False
 
     def Init(self):
         self.conifg = self.getConfig()
+        self.sendkey = self.conifg.sendkey
         self.roles = []
         date = datetime.datetime.now()
-        log.WriteLog(f"[INFO]今天是{date.year}.{date.month}.{date.day}")
+        log.WriteLog(f"[INFO]今天是{date.year}年{date.month}月{date.day}日{date.hour}:{date.minute}")
         log.WriteLog(f"[INFO]导入了{len(self.conifg.cookies)}个Cookies")
         for cookies in self.conifg.cookies:
             roles = self.getRoles(cookies)
@@ -58,7 +61,8 @@ class AutoSign:
                 res['region'] = role['region']
                 self.infolist.append(res)
         self.SignIn(infolist=self.infolist)
-
+        requests.post(f"https://sctapi.ftqq.com/{self.sendkey}.send",
+                      {'text': self.msg, 'desp': self.msg})
 
     @staticmethod
     def get_ds():
@@ -77,14 +81,17 @@ class AutoSign:
             log.WriteLog(f"[INFO]为UID:{info['uid']}签到中...")
             if info['data']['is_sign'] is True:
                 log.WriteLog(F"[Waring]UID:{info['uid']}.您今日已经签到过了")
+                self.msg = "您今日已经签到过了"
                 pass
             elif info['data']['first_bind'] is True:
                 log.WriteLog(F"[Warning]UID:{info['uid']}请先去米游社签到一次!")
+                self.msg = "请先去米游社签到一次!"
                 pass
             else:
                 awardname = awards[total_sign_day]['name']
                 cnt = awards[total_sign_day]['cnt']
                 log.WriteLog(f"[INFO]UID:{info['uid']}今日的奖励是{cnt}{awardname}")
+                self.msg = f"今日的奖励是{cnt}{awardname}"
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) miHoYoBBS/2.3.0',
                     'Referer': 'https://webstatic.mihoyo.com/bbs/event/signin-ys/index.html?bbs_auth_required=true&act_id=e202009291139501&utm_source=bbs&utm_medium=mys&utm_campaign=icon',
@@ -100,11 +107,14 @@ class AutoSign:
                     'region': info["region"],
                     'uid': info["uid"]
                 }
-                res = requests.post(self.signurl, json=data, headers=headers, cookies=info["cookies"], verify=False).json()
+                res = requests.post(self.signurl, json=data, headers=headers, cookies=info["cookies"],
+                                    verify=False).json()
                 if res["retcode"] != 0:
                     log.WriteLog(f"[Error]UID:{info['uid']}签到失败.错误信息:{res['message']}")
+                    self.msg += "【签到失败】"
                 else:
                     log.WriteLog(f"[INFO]UID:{info['uid']}签到成功!")
+                    self.msg += "【签到成功】"
 
     def getawards(self, cookies):
         res = requests.get(self.awardsurl, headers=self.headers, cookies=cookies, verify=False).json()
@@ -126,21 +136,28 @@ class AutoSign:
         try:
             file = open("config.json", "r").read()
             config = json.loads(file)
+
             class Conifg:
                 cookies = config["cookies"]
+                sendkey = config["sendkey"]
+
             return Conifg
         except FileNotFoundError:
             log.WriteLog("[Warning]未发现配置文件,重新生成中...")
-            conifg = {"cookies": [{"ltoken": "", "cookie_token": "", "account_id": ""}]}
+            conifg = {"cookies": [{"ltoken": "", "cookie_token": "", "account_id": ""}], "sendkey": ""}
             open("config.json", "w").write(json.dumps(conifg, ensure_ascii=False))
             file = open("config.json", "r").read()
             config = json.loads(file)
+
             class Conifg:
                 cookies = config["cookies"]
+                sendkey = config["sendkey"]
+
             return Conifg
         except json.JSONDecodeError:
             log.WriteLog("[Error]配置文件异常.请删除重试")
             exit()
+
 
 disable_warnings()
 AutoSign()
