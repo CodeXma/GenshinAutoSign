@@ -27,8 +27,9 @@ class AutoSign:
 
     def SignInThread(self):
         while True:
+            time.sleep(60)
             if self.firsttime or (
-                    time.localtime().tm_hour == 4 and time.localtime().tm_min == 30 and time.localtime().tm_sec == 0):
+                    time.localtime().tm_hour == 4 and time.localtime().tm_min == 30):
                 self.Init()
                 self.firsttime = False
 
